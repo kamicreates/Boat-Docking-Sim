@@ -271,7 +271,11 @@ window.addEventListener('resize', resize);
 // Controls
 const keys = {};
 window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+window.addEventListener('keyup', e => {
+    keys[e.key.toLowerCase()] = false;
+    if (e.key.toLowerCase() === 'p') anchor.payingOut = false;
+    if (e.key.toLowerCase() === 'l') anchor.haulingIn = false;
+});
 
 resize();
 
@@ -688,6 +692,8 @@ gameLoop();
 
 window.addEventListener('keydown', (e) => {
     if (e.key.toLowerCase() === 'r') resetBoat();
+    if (e.key.toLowerCase() === 'p') anchor.payingOut = true;
+    if (e.key.toLowerCase() === 'l') anchor.haulingIn = true;
     if (e.key === ' ') {
         e.preventDefault();
         toggleAnchor();
