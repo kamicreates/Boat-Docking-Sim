@@ -256,6 +256,22 @@ body {
     z-index: 10;
 }
 
+#anchor-panel {
+    position: absolute;
+    bottom: 30px;
+    left: calc(50% + 255px);
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.7);
+    padding: 15px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 160px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    z-index: 10;
+}
+
 #compass-visual {
     width: 80px;
     height: 80px;
@@ -366,9 +382,8 @@ body {
 
 #reset-container {
     position: absolute;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
+    bottom: 30px;
+    right: 20px;
     z-index: 20;
 }
 
