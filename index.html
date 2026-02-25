@@ -90,10 +90,7 @@
                     </div>
                 </div>
             </div>
-            <div id="stats">
-                Speed: <span id="speed">0</span> kn<br>
-                Rotation: <span id="rotation">0</span>°
-            </div>
+
         </div>
     </div>
     <div id="wind-ui">
@@ -115,8 +112,8 @@
             <div class="setting-item">
                 <label>Speed (0-50 Knots)</label>
                 <div class="input-row">
-                    <input type="range" id="windSpeedSlider" min="0" max="50" step="1" value="0">
-                    <input type="number" id="windSpeedInput" min="0" max="50" step="1" value="0">
+                    <input type="range" id="windSpeedSlider" min="0" max="50" step="1" value="3">
+                    <input type="number" id="windSpeedInput" min="0" max="50" step="1" value="3">
                 </div>
             </div>
             <details class="advanced-settings">
@@ -188,6 +185,21 @@
                 <div id="compass-needle"></div>
             </div>
             <div id="heading-value">0° N</div>
+        </div>
+    </div>
+
+    <div id="anchor-panel">
+        <button class="collapse-btn" onclick="togglePanel('anchor-panel')">▼ ANCHOR</button>
+        <div class="panel-content">
+            <div class="panel-label">ANCHOR CONTROL</div>
+            <button id="anchorBtn" style="width: 100%; height: 40px; background: #2c3e50; color: white; border: 1px solid #7f8c8d; border-radius: 4px; cursor: pointer; font-weight: bold; transition: background 0.2s;">DROP ANCHOR (SPACE)</button>
+            <div id="rode-info" style="margin-top: 10px; display: none;">
+                <label style="font-size: 0.7rem; color: #4fc3f7;">RODE: <span id="rode-length">0</span> ft</label>
+                <div style="display: flex; gap: 5px; margin-top: 5px;">
+                    <button id="payOutBtn" style="flex: 1; padding: 5px; background: #34495e; color: white; border: 1px solid #7f8c8d; border-radius: 4px; font-size: 0.7rem; cursor: pointer;">PAY OUT</button>
+                    <button id="haulInBtn" style="flex: 1; padding: 5px; background: #34495e; color: white; border: 1px solid #7f8c8d; border-radius: 4px; font-size: 0.7rem; cursor: pointer;">HAUL IN</button>
+                </div>
+            </div>
         </div>
     </div>
 
