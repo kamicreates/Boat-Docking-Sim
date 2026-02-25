@@ -29,6 +29,12 @@
                 <p class="hint">Use W/S for Left Engine, I/K for Right Engine</p>
                 <p class="hint">D / A for Engine Angle, F to Center</p>
                 <p class="hint">T to Toggle Camera Lock</p>
+                <div class="setting-item" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px;">
+                    <label>Bow Thruster Controls</label>
+                    <div class="input-row">
+                        <button id="thrusterSwitchBtn" style="width: 100%; padding: 5px; background: #333; color: white; border: 1px solid #555; border-radius: 4px; cursor: pointer; font-size: 0.7rem;">E=PORT, U=STBD (Click to Swap)</button>
+                    </div>
+                </div>
                 <div class="settings">
                     <details class="advanced-settings">
                         <summary>Advanced Settings</summary>
@@ -79,6 +85,13 @@
                             <div class="input-row">
                                 <input type="range" id="steerSensSlider" min="0" max="0.1" step="0.005" value="0.02">
                                 <input type="number" id="steerSensInput" min="0" max="0.1" step="0.005" value="0.02">
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <label>Bow Thruster (0-0.01)</label>
+                            <div class="input-row">
+                                <input type="range" id="thrusterSlider" min="0" max="0.01" step="0.0005" value="0.005">
+                                <input type="number" id="thrusterInput" min="0" max="0.01" step="0.0005" value="0.005">
                             </div>
                         </div>
                     </details>
