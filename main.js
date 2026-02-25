@@ -296,7 +296,7 @@ function update() {
     else if (keys['f']) boat.rudder = 0;
 
     // Physics
-    const currentPower = parseFloat(powerSlider?.value || 0.03);
+    const currentPower = parseFloat(powerSlider?.value || 0.01);
     const engineAngle = (boat.rudder || 0) * 0.78; // ~45 degrees max
 
     const leftThrustX = Math.cos((boat.angle || 0) + engineAngle) * ((boat.leftThrottle || 0) * currentPower);
