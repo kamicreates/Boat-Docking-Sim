@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dual-Throttle Boat Docking Simulator</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="reset-container">
+        <button id="reset-btn">RESET BOAT (R)</button>
+    </div>
+    <div id="ui">
+        <button class="collapse-btn" onclick="togglePanel('ui')">▼ CONTROLS</button>
+        <div class="panel-content">
+            <div class="controls-info">
+                <h2>Controls</h2>
+                <div class="setting-item">
+                    <button id="cameraToggleBtn" class="toggle-active">CAMERA LOCK: ON</button>
+                </div>
+                <div class="control-group">
+                    <p><strong>Left Motor (W / S)</strong></p>
+                    <div class="throttle-bar"><div id="left-throttle-fill" class="fill"></div></div>
+                </div>
+                <div class="control-group">
+                    <p><strong>Right Motor (I / K)</strong></p>
+                    <div class="throttle-bar"><div id="right-throttle-fill" class="fill"></div></div>
+                </div>
+                <p class="hint">Use W/S for Left Engine, I/K for Right Engine</p>
+                <p class="hint">D / A for Engine Angle, F to Center</p>
+                <p class="hint">T to Toggle Camera Lock</p>
+                <div class="settings">
+                    <details class="advanced-settings">
+                        <summary>Advanced Settings</summary>
+                        <div class="setting-item">
+                            <label>Diff Thrust (0-10)</label>
+                            <div class="input-row">
+                                <input type="range" id="diffThrustSlider" min="0" max="10" step="0.5" value="2">
+                                <input type="number" id="diffThrustInput" min="0" max="10" step="0.5" value="2">
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <label>Angular Drag (0.5-1.0)</label>
+                            <div class="input-row">
+                                <input type="range" id="dragSlider" min="0.5" max="1" step="0.01" value="0.9">
+                                <input type="number" id="dragInput" min="0.5" max="1" step="0.01" value="0.9">
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <label>Prop Walk (0-5)</label>
+                            <div class="input-row">
+                                <input type="range" id="creepSlider" min="0" max="5" step="0.1" value="0.3">
+                                <input type="number" id="creepInput" min="0" max="5" step="0.1" value="0.3">
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <label>Engine Power (0.01-0.2)</label>
+                            <div class="input-row">
+                                <input type="range" id="powerSlider" min="0.01" max="0.2" step="0.01" value="0.03">
+                                <input type="number" id="powerInput" min="0.01" max="0.2" step="0.01" value="0.03">
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <label>Drift Mul (0-5)</label>
+                            <div class="input-row">
+                                <input type="range" id="driftSlider" min="0" max="5" step="0.1" value="5">
+                                <input type="number" id="driftInput" min="0" max="5" step="0.1" value="5">
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <label>Steer Torque (0-20)</label>
+                            <div class="input-row">
+                                <input type="range" id="steerTorqueSlider" min="0" max="20" step="1" value="5">
+                                <input type="number" id="steerTorqueInput" min="0" max="20" step="1" value="5">
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <label>Steer Sensitivity (0-0.1)</label>
+                            <div class="input-row">
+                                <input type="range" id="steerSensSlider" min="0" max="0.1" step="0.005" value="0.02">
+                                <input type="number" id="steerSensInput" min="0" max="0.1" step="0.005" value="0.02">
+                            </div>
+                        </div>
+                    </details>
+                    <div class="setting-item">
+                        <label>Boat Color</label>
+                        <div class="input-row">
+                            <input type="color" id="boatColorPicker" value="#828282">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="stats">
+                Speed: <span id="speed">0</span> kn<br>
+                Rotation: <span id="rotation">0</span>°
+            </div>
+        </div>
+    </div>
+    <div id="wind-ui">
+        <button class="collapse-btn" onclick="togglePanel('wind-ui')">▼ WIND CONTROL</button>
+        <div class="panel-content">
+            <div id="wind-dial-container">
+                <div id="wind-dial">
+                    <div id="wind-dial-handle"></div>
+                    <div id="wind-dial-arrow">↑</div>
+                </div>
+            </div>
+            <div class="setting-item" style="display: none;">
+                <label>Direction (0-359°)</label>
+                <div class="input-row">
+                    <input type="range" id="windDirSlider" min="0" max="359" step="1" value="0">
+                    <input type="number" id="windDirInput" min="0" max="359" step="1" value="0">
+                </div>
+            </div>
+            <div class="setting-item">
+                <label>Speed (0-50 Knots)</label>
+                <div class="input-row">
+                    <input type="range" id="windSpeedSlider" min="0" max="50" step="1" value="0">
+                    <input type="number" id="windSpeedInput" min="0" max="50" step="1" value="0">
+                </div>
+            </div>
+            <details class="advanced-settings">
+                <summary>Advanced Settings</summary>
+                <div class="setting-item">
+                    <label>Wind Force (0.001-0.05)</label>
+                    <div class="input-row">
+                        <input type="range" id="windForceSlider" min="0.001" max="0.05" step="0.001" value="0.001">
+                        <input type="number" id="windForceInput" min="0.001" max="0.05" step="0.001" value="0.001">
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <label>Beam Mult (1-10)</label>
+                    <div class="input-row">
+                        <input type="range" id="beamMultSlider" min="1" max="10" step="0.5" value="1.2">
+                        <input type="number" id="beamMultInput" min="1" max="10" step="0.5" value="1.2">
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <label>Lat. Drag (0-0.5)</label>
+                    <div class="input-row">
+                        <input type="range" id="latDragSlider" min="0" max="0.5" step="0.01" value="0">
+                        <input type="number" id="latDragInput" min="0" max="0.5" step="0.01" value="0">
+                    </div>
+                </div>
+            </details>
+            <div id="wind-arrow-container" style="display: none;">
+                <div id="wind-arrow">↑</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="speed-panel">
+        <button class="collapse-btn" onclick="togglePanel('speed-panel')">▼ SPEED</button>
+        <div class="panel-content">
+            <div class="panel-label">KNOTS</div>
+            <div id="speed-visual">
+                <div id="speed-arc"></div>
+                <div id="speed-needle"></div>
+            </div>
+            <div id="speed-value">0.0</div>
+        </div>
+    </div>
+
+    <div id="steering-panel">
+        <button class="collapse-btn" onclick="togglePanel('steering-panel')">▼ STEERING</button>
+        <div class="panel-content">
+            <div class="panel-label">ENGINE ANGLE</div>
+            <div id="steering-visual">
+                <div class="steering-half port"></div>
+                <div class="steering-half starboard"></div>
+                <div id="steering-needle"></div>
+            </div>
+            <div id="steering-value">0°</div>
+        </div>
+    </div>
+
+    <div id="heading-panel">
+        <button class="collapse-btn" onclick="togglePanel('heading-panel')">▼ HEADING</button>
+        <div class="panel-content">
+            <div class="panel-label">COMPASS</div>
+            <div id="compass-visual">
+                <div id="compass-rose">
+                    <div class="cardinal n">N</div>
+                    <div class="cardinal e">E</div>
+                    <div class="cardinal s">S</div>
+                    <div class="cardinal w">W</div>
+                </div>
+                <div id="compass-needle"></div>
+            </div>
+            <div id="heading-value">0° N</div>
+        </div>
+    </div>
+
+
+    <canvas id="simCanvas"></canvas>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>
