@@ -1,3 +1,18 @@
+const boat = {
+    x: 0,
+    y: 0,
+    angle: 0,
+    width: 40,
+    height: 80,
+    leftThrottle: 0,
+    rightThrottle: 0,
+    rudder: 0, // -1 to 1
+    vx: 0,
+    vy: 0,
+    va: 0,
+    visualEngineAngle: 0
+};
+
 window.togglePanel = function(id) {
     const el = document.getElementById(id);
     el.classList.toggle('collapsed');
@@ -49,6 +64,22 @@ const speedNeedle = document.getElementById('speed-needle');
 const headingValue = document.getElementById('heading-value');
 const compassNeedle = document.getElementById('compass-needle');
 const boatColorPicker = document.getElementById('boatColorPicker');
+const thrusterSlider = document.getElementById('thrusterSlider');
+const thrusterInput = document.getElementById('thrusterInput');
+const thrusterSwitchBtn = document.getElementById('thrusterSwitchBtn');
+
+let thrusterConfig = { port: 'e', stbd: 'u' };
+if (thrusterSwitchBtn) {
+    thrusterSwitchBtn.addEventListener('click', () => {
+        if (thrusterConfig.port === 'e') {
+            thrusterConfig = { port: 'u', stbd: 'e' };
+            thrusterSwitchBtn.textContent = "U=PORT, E=STBD (Click to Swap)";
+        } else {
+            thrusterConfig = { port: 'e', stbd: 'u' };
+            thrusterSwitchBtn.textContent = "E=PORT, U=STBD (Click to Swap)";
+        }
+    });
+}
 const anchorBtn = document.getElementById('anchorBtn');
 const rodeInfo = document.getElementById('rode-info');
 const rodeLengthEl = document.getElementById('rode-length');
@@ -67,6 +98,7 @@ const anchor = {
 
 function toggleAnchor() {
     anchor.dropped = !anchor.dropped;
+    if (Object.keys(boat).length === 0) return;
     if (anchor.dropped) {
         anchor.x = boat.x + Math.cos(boat.angle) * (boat.height / 2);
         anchor.y = boat.y + Math.sin(boat.angle) * (boat.height / 2);
@@ -182,6 +214,7 @@ syncInputs(windSpeedSlider, windSpeedInput);
 syncInputs(windForceSlider, windForceInput);
 syncInputs(beamMultSlider, beamMultInput);
 syncInputs(latDragSlider, latDragInput);
+syncInputs(thrusterSlider, thrusterInput);
 
 // Docking area (Marina Channel Layout)
 const docks = [];
@@ -209,20 +242,7 @@ function setupDocks() {
 }
 
 // Boat state
-const boat = {
-    x: 0,
-    y: 0,
-    angle: 0,
-    width: 40,
-    height: 80,
-    leftThrottle: 0,
-    rightThrottle: 0,
-    rudder: 0, // -1 to 1
-    vx: 0,
-    vy: 0,
-    va: 0,
-    visualEngineAngle: 0
-};
+// Boat initialized at top
 
 function resetBoat() {
     boat.x = canvas.width / 2;
@@ -252,13 +272,6 @@ camBtn.addEventListener('click', () => {
     updateCamBtn();
 });
 
-window.addEventListener('keydown', e => {
-    if (e.key.toLowerCase() === 't') {
-        cameraLocked = !cameraLocked;
-        updateCamBtn();
-    }
-});
-
 // Resize handling
 function resize() {
     canvas.width = window.innerWidth;
@@ -268,13 +281,27 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 
-// Controls
 const keys = {};
-window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+window.addEventListener('keydown', e => {
+    const key = e.key.toLowerCase();
+    keys[key] = true;
+    if (key === 'r') resetBoat();
+    if (key === 'p') anchor.payingOut = true;
+    if (key === 'l') anchor.haulingIn = true;
+    if (key === ' ') {
+        e.preventDefault();
+        toggleAnchor();
+    }
+    if (key === 't') {
+        cameraLocked = !cameraLocked;
+        updateCamBtn();
+    }
+});
 window.addEventListener('keyup', e => {
-    keys[e.key.toLowerCase()] = false;
-    if (e.key.toLowerCase() === 'p') anchor.payingOut = false;
-    if (e.key.toLowerCase() === 'l') anchor.haulingIn = false;
+    const key = e.key.toLowerCase();
+    keys[key] = false;
+    if (key === 'p') anchor.payingOut = false;
+    if (key === 'l') anchor.haulingIn = false;
 });
 
 resize();
@@ -294,6 +321,25 @@ function update() {
     if (keys['d']) boat.rudder = Math.max(-1, boat.rudder - 0.05);
     else if (keys['a']) boat.rudder = Math.min(1, boat.rudder + 0.05);
     else if (keys['f']) boat.rudder = 0;
+
+    // Bow Thruster
+    const thrusterForce = parseFloat(thrusterSlider?.value || 0.003); 
+    if (keys[thrusterConfig.port]) {
+        // Moves bow to port
+        const fx = Math.cos(boat.angle - Math.PI/2) * thrusterForce;
+        const fy = Math.sin(boat.angle - Math.PI/2) * thrusterForce;
+        boat.vx += fx;
+        boat.vy += fy;
+        boat.va -= thrusterForce / 10; 
+    }
+    if (keys[thrusterConfig.stbd]) {
+        // Moves bow to stbd
+        const fx = Math.cos(boat.angle + Math.PI/2) * thrusterForce;
+        const fy = Math.sin(boat.angle + Math.PI/2) * thrusterForce;
+        boat.vx += fx;
+        boat.vy += fy;
+        boat.va += thrusterForce / 10; 
+    }
 
     // Physics
     const currentPower = parseFloat(powerSlider?.value || 0.01);
@@ -644,14 +690,27 @@ function draw() {
     ctx.lineWidth = 1;
     ctx.stroke();
 
+    // Bow Thruster Wash
+    if (keys[thrusterConfig.port]) {
+        drawPropWash(boat.height / 2 - 10, 0, 1, -Math.PI / 2);
+    }
+    if (keys[thrusterConfig.stbd]) {
+        drawPropWash(boat.height / 2 - 10, 0, 1, Math.PI / 2);
+    }
+
+
     // Prop Wash Animation
-    const drawPropWash = (x, y, throttle) => {
+    function drawPropWash(x, y, throttle, customAngle = null) {
         if (Math.abs(throttle) < 0.1) return;
         const offset = (Date.now() / 50) % 10;
         
         ctx.save();
         ctx.translate(x, y);
-        if (throttle < 0) ctx.rotate(Math.PI); 
+        if (customAngle !== null) {
+            ctx.rotate(customAngle);
+        } else if (throttle < 0) {
+            ctx.rotate(Math.PI); 
+        }
         
         ctx.beginPath();
         ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
@@ -661,10 +720,10 @@ function draw() {
         }
         ctx.fill();
         ctx.restore();
-    };
+    }
 
     // Engines
-    const drawEngine = (ty, throttle) => {
+    function drawEngine(ty, throttle) {
         ctx.save();
         ctx.translate(-boat.height / 2, ty);
         ctx.rotate(boat.visualEngineAngle || 0);
@@ -672,7 +731,7 @@ function draw() {
         ctx.fillStyle = '#222';
         ctx.fillRect(-8, -5, 12, 10);
         ctx.restore();
-    };
+    }
 
     drawEngine(-boat.width / 3, boat.leftThrottle);
     drawEngine(boat.width / 3, boat.rightThrottle);
@@ -691,13 +750,6 @@ resize();
 gameLoop();
 
 window.addEventListener('keydown', (e) => {
-    if (e.key.toLowerCase() === 'r') resetBoat();
-    if (e.key.toLowerCase() === 'p') anchor.payingOut = true;
-    if (e.key.toLowerCase() === 'l') anchor.haulingIn = true;
-    if (e.key === ' ') {
-        e.preventDefault();
-        toggleAnchor();
-    }
     if (e.key === 'Escape') {
         document.querySelectorAll('.panel-content').forEach(panel => {
             const parent = panel.parentElement;
