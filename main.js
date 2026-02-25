@@ -49,6 +49,45 @@ const speedNeedle = document.getElementById('speed-needle');
 const headingValue = document.getElementById('heading-value');
 const compassNeedle = document.getElementById('compass-needle');
 const boatColorPicker = document.getElementById('boatColorPicker');
+const anchorBtn = document.getElementById('anchorBtn');
+const rodeInfo = document.getElementById('rode-info');
+const rodeLengthEl = document.getElementById('rode-length');
+const payOutBtn = document.getElementById('payOutBtn');
+const haulInBtn = document.getElementById('haulInBtn');
+
+// Anchor state
+const anchor = {
+    dropped: false,
+    x: 0,
+    y: 0,
+    rodeLength: 0,
+    maxRode: 300,
+    tension: 0
+};
+
+function toggleAnchor() {
+    anchor.dropped = !anchor.dropped;
+    if (anchor.dropped) {
+        anchor.x = boat.x + Math.cos(boat.angle) * (boat.height / 2);
+        anchor.y = boat.y + Math.sin(boat.angle) * (boat.height / 2);
+        anchor.rodeLength = 20; // Initial drop depth + a little
+        anchorBtn.textContent = "RAISE ANCHOR (SPACE)";
+        anchorBtn.style.background = "#c0392b";
+        rodeInfo.style.display = "block";
+    } else {
+        anchor.dropped = false;
+        anchor.rodeLength = 0;
+        anchorBtn.textContent = "DROP ANCHOR (SPACE)";
+        anchorBtn.style.background = "#2c3e50";
+        rodeInfo.style.display = "none";
+    }
+}
+
+anchorBtn.addEventListener('click', toggleAnchor);
+payOutBtn.addEventListener('mousedown', () => anchor.payingOut = true);
+window.addEventListener('mouseup', () => anchor.payingOut = false);
+haulInBtn.addEventListener('mousedown', () => anchor.haulingIn = true);
+window.addEventListener('mouseup', () => anchor.haulingIn = false);
 
 // Wind particles state
 const windLines = [];
@@ -163,9 +202,9 @@ function setupDocks() {
 
     for (let i = startX; i < canvas.width - 50; i += slipWidth) {
         // Vertical piers top
-        docks.push({ x: i, y: 0, w: pierThickness, h: slipDepth });
+        docks.push({ x: i, y: 0, w: 15, h: slipDepth });
         // Vertical piers bottom
-        docks.push({ x: i, y: canvas.height - slipDepth, w: pierThickness, h: slipDepth });
+        docks.push({ x: i, y: canvas.height - slipDepth, w: 15, h: slipDepth });
     }
 }
 
@@ -336,6 +375,35 @@ function update() {
     boat.vy *= 0.99;
     boat.va *= currentDrag; 
 
+    // Anchor Physics
+    if (anchor.dropped) {
+        if (anchor.payingOut) anchor.rodeLength = Math.min(anchor.maxRode, anchor.rodeLength + 2);
+        if (anchor.haulingIn) anchor.rodeLength = Math.max(10, anchor.rodeLength - 2);
+
+        const bowX = boat.x + Math.cos(boat.angle) * (boat.height / 2);
+        const bowY = boat.y + Math.sin(boat.angle) * (boat.height / 2);
+        const dx = bowX - anchor.x;
+        const dy = bowY - anchor.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist > anchor.rodeLength) {
+            const pullForce = (dist - anchor.rodeLength) * 0.05;
+            const angleToAnchor = Math.atan2(anchor.y - bowY, anchor.x - bowX);
+            
+            // Pull the bow towards anchor
+            boat.vx += Math.cos(angleToAnchor) * pullForce;
+            boat.vy += Math.sin(angleToAnchor) * pullForce;
+            
+            // Torque: pull the bow to face the anchor
+            const angleDiff = angleToAnchor - boat.angle;
+            const normalizedDiff = Math.atan2(Math.sin(angleDiff), Math.cos(angleDiff));
+            boat.va += normalizedDiff * 0.01;
+            anchor.tension = pullForce;
+        } else {
+            anchor.tension = 0;
+        }
+    }
+
     // Wind Physics
     const windDir = (parseFloat(windDirSlider?.value || 0) - 90) * (Math.PI / 180);
     const windKnots = parseFloat(windSpeedSlider?.value || 0);
@@ -407,6 +475,10 @@ function updateUI() {
     steeringNeedle.style.transform = `translateX(-50%) rotate(${angDeg}deg)`;
     steeringValue.textContent = `${Math.abs(angDeg).toFixed(0)}° ${angDeg < 0 ? 'STBD' : angDeg > 0 ? 'PORT' : ''}`;
 
+    if (anchor.dropped) {
+        rodeLengthEl.textContent = Math.round(anchor.rodeLength);
+    }
+
     // Update Heading Panel
     // Default angle is -Math.PI/2 (up). We want that to be 0 degrees.
     let deg = (boat.angle + Math.PI / 2) * (180 / Math.PI);
@@ -429,10 +501,28 @@ function updateUI() {
 }
 
 function draw() {
-    ctx.save();
-    
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Draw Wind Lines (Tiled/Infinite)
+    const ws = parseFloat(windSpeedSlider?.value || 0);
+    const wd = (parseFloat(windDirSlider?.value || 0) - 90) * (Math.PI / 180);
+    
+    // Wind line movement is now decoupled from the drawing loop's camera state
+    // We update their world positions here
+    if (ws > 0) {
+        windLines.forEach(wl => {
+            wl.x += Math.cos(wd) * (ws / 2 + 1);
+            wl.y += Math.sin(wd) * (ws / 2 + 1);
+            
+            // Wrap wind particles around boat position in world space
+            if (wl.x < boat.x - 1000) wl.x += 2000;
+            if (wl.x > boat.x + 1000) wl.x -= 2000;
+            if (wl.y < boat.y - 1000) wl.y += 2000;
+            if (wl.y > boat.y + 1000) wl.y -= 2000;
+        });
+    }
+
+    ctx.save();
     if (cameraLocked) {
         ctx.translate(canvas.width / 2, canvas.height / 2);
         ctx.rotate(-boat.angle - Math.PI / 2);
@@ -441,70 +531,78 @@ function draw() {
 
     // Draw Water
     ctx.fillStyle = '#0077be';
-    // Use a large rectangle for "infinite" feel or tiling
     const waterSize = 5000;
     ctx.fillRect(boat.x - waterSize/2, boat.y - waterSize/2, waterSize, waterSize);
     
-    // Draw Grid/Waves (Tiled relative to boat position)
+    // Draw Grid/Waves
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
     ctx.lineWidth = 1;
-    
     const gridSize = 100;
-    const startX = Math.floor((boat.x - canvas.width) / gridSize) * gridSize;
-    const endX = Math.ceil((boat.x + canvas.width) / gridSize) * gridSize;
-    const startY = Math.floor((boat.y - canvas.height) / gridSize) * gridSize;
-    const endY = Math.ceil((boat.y + canvas.height) / gridSize) * gridSize;
+    const startGridX = Math.floor((boat.x - 2000) / gridSize) * gridSize;
+    const endGridX = Math.ceil((boat.x + 2000) / gridSize) * gridSize;
+    const startGridY = Math.floor((boat.y - 2000) / gridSize) * gridSize;
+    const endGridY = Math.ceil((boat.y + 2000) / gridSize) * gridSize;
 
-    for (let i = startX; i <= endX; i += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(i, startY);
-        ctx.lineTo(i, endY);
-        ctx.stroke();
+    for (let i = startGridX; i <= endGridX; i += gridSize) {
+        ctx.beginPath(); ctx.moveTo(i, startGridY); ctx.lineTo(i, endGridY); ctx.stroke();
     }
-    for (let i = startY; i <= endY; i += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(startX, i);
-        ctx.lineTo(endX, i);
-        ctx.stroke();
+    for (let i = startGridY; i <= endGridY; i += gridSize) {
+        ctx.beginPath(); ctx.moveTo(startGridX, i); ctx.lineTo(endGridX, i); ctx.stroke();
     }
 
-    // Draw Wind Lines (Tiled/Infinite)
-    const ws = parseFloat(windSpeedSlider?.value || 0);
-    const wd = (parseFloat(windDirSlider?.value || 0) - 90) * (Math.PI / 180);
-    ctx.strokeStyle = `rgba(255, 255, 255, ${Math.min(0.6, 0.1 + ws / 80)})`;
-    ctx.lineWidth = 5;
-    windLines.forEach(wl => {
-        wl.x += Math.cos(wd) * (ws / 2 + 1);
-        wl.y += Math.sin(wd) * (ws / 2 + 1);
-        
-        // Wrap wind particles around boat view
-        if (wl.x < boat.x - 1000) wl.x += 2000;
-        if (wl.x > boat.x + 1000) wl.x -= 2000;
-        if (wl.y < boat.y - 1000) wl.y += 2000;
-        if (wl.y > boat.y + 1000) wl.y -= 2000;
-        
-        ctx.beginPath();
-        ctx.moveTo(wl.x, wl.y);
-        ctx.lineTo(wl.x + Math.cos(wd) * wl.len, wl.y + Math.sin(wd) * wl.len);
-        ctx.stroke();
-    });
+    if (ws > 0) {
+        ctx.strokeStyle = `rgba(255, 255, 255, ${Math.min(0.6, 0.1 + ws / 80)})`;
+        ctx.lineWidth = 5;
+        windLines.forEach(wl => {
+            ctx.beginPath();
+            ctx.moveTo(wl.x, wl.y);
+            ctx.lineTo(wl.x + Math.cos(wd) * wl.len, wl.y + Math.sin(wd) * wl.len);
+            ctx.stroke();
+        });
+    }
 
     // Draw Docks (Now static in world space)
     ctx.fillStyle = '#5d4037';
     docks.forEach(d => {
         ctx.fillRect(d.x, d.y, d.w, d.h);
+        ctx.save();
         ctx.strokeStyle = '#3e2723';
+        ctx.lineWidth = 1;
         ctx.strokeRect(d.x, d.y, d.w, d.h);
+        ctx.restore();
     });
 
-    // Draw Boat
+    if (anchor.dropped) {
+        const bowX = boat.x + Math.cos(boat.angle) * (boat.height / 2);
+        const bowY = boat.y + Math.sin(boat.angle) * (boat.height / 2);
+        
+        // Draw Rode
+        ctx.beginPath();
+        ctx.strokeStyle = '#7f8c8d';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.moveTo(bowX, bowY);
+        ctx.lineTo(anchor.x, anchor.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Draw Anchor
+        ctx.fillStyle = '#2c3e50';
+        ctx.beginPath();
+        ctx.arc(anchor.x, anchor.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#95a5a6';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+
+    // Wake
     ctx.save();
     const pivotX = boat.height / 6; 
     ctx.translate(boat.x, boat.y);
     ctx.rotate(boat.angle);
     ctx.translate(-pivotX, 0);
 
-    // Wake
     if (Math.abs(boat.vx || 0) + Math.abs(boat.vy || 0) > 0.1) {
         ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
         ctx.beginPath();
@@ -575,8 +673,8 @@ function draw() {
     drawEngine(-boat.width / 3, boat.leftThrottle);
     drawEngine(boat.width / 3, boat.rightThrottle);
 
-    ctx.restore();
-    ctx.restore();
+    ctx.restore(); // boat local
+    ctx.restore(); // camera
 }
 
 function gameLoop() {
@@ -590,6 +688,10 @@ gameLoop();
 
 window.addEventListener('keydown', (e) => {
     if (e.key.toLowerCase() === 'r') resetBoat();
+    if (e.key === ' ') {
+        e.preventDefault();
+        toggleAnchor();
+    }
     if (e.key === 'Escape') {
         document.querySelectorAll('.panel-content').forEach(panel => {
             const parent = panel.parentElement;
